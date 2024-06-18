@@ -44,7 +44,7 @@ set network.@device[0].multicast_querier='1'
 set ecm.@general[0].enable_bridge_filtering='0'
 
 # uHTTPd settings
-set uhttpd.main.redirect_https='1'
+#set uhttpd.main.redirect_https='1'
 
 # BanIP settings
 #set banip.global.ban_cores='1'
