@@ -14,7 +14,7 @@ set wireless.default_radio0.proxy_arp='1'
 
 # Wireless radio0 specific settings
 set wireless.radio0.htmode='HE160'
-set wireless.radio0.channel='44'
+#set wireless.radio0.channel='44'
 set wireless.radio0.country='US'
 
 # Wireless default settings for radio1
@@ -47,12 +47,12 @@ set ecm.@general[0].enable_bridge_filtering='0'
 set uhttpd.main.redirect_https='1'
 
 # BanIP settings
-set banip.global.ban_cores='1'
-set banip.global.ban_reportelements='0'
-set banip.global.ban_splitsize='1024'
-set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardlan='doh'
+#set banip.global.ban_cores='1'
+#set banip.global.ban_reportelements='0'
+#set banip.global.ban_splitsize='1024'
+#set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardlan='doh'
 
 # Disable IPv6
 set network.lan.ipv6='0'
