@@ -12,6 +12,13 @@ This project automates the process of building OpenWrt firmware images for the Q
 - Full NSS (Network Subsystem) support 
 - Quality-of-life enhancements through UCI configuration
 
+Custom:
+- adguardhome
+- pbr
+- ddns
+- cloudflared
+- wireguard
+  
 ## Build Process
 
 The build process is automated using GitHub Actions and consists of the following steps:
