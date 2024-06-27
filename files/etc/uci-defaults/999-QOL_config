@@ -46,15 +46,15 @@ set network.@device[0].multicast_querier='1'
 set ecm.@general[0].enable_bridge_filtering='0'
 
 # uHTTPd settings
-set uhttpd.main.redirect_https='1'
+#set uhttpd.main.redirect_https='1'
 
 # BanIP settings
-set banip.global.ban_cores='1'
-set banip.global.ban_reportelements='0'
-set banip.global.ban_splitsize='1024'
-set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardlan='doh'
+#set banip.global.ban_cores='1'
+#set banip.global.ban_reportelements='0'
+#set banip.global.ban_splitsize='1024'
+#set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardlan='doh'
 
 # Disable IPv6
 set network.lan.ipv6='0'
