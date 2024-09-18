@@ -16,8 +16,8 @@ set wireless.default_radio0.proxy_arp='1'
 
 # Wireless radio0 specific settings
 set wireless.radio0.htmode='HE160'
-set wireless.radio0.channel='auto'
-set wireless.radio0.country='DE'
+#set wireless.radio0.channel='auto'
+#set wireless.radio0.country='DE'
 
 # Wireless default settings for radio1
 set wireless.default_radio1.dtim_period='1'
@@ -31,8 +31,8 @@ set wireless.default_radio1.proxy_arp='1'
 
 # Wireless radio1 specific settings
 set wireless.radio1.htmode='HE40'
-set wireless.radio1.channel='auto'
-set wireless.radio1.country='DE'
+#set wireless.radio1.channel='auto'
+#set wireless.radio1.country='DE'
 
 # Firewall settings
 set firewall.@defaults[0].flow_offloading='0'
@@ -48,16 +48,16 @@ set network.@device[0].multicast_querier='1'
 set ecm.@general[0].enable_bridge_filtering='0'
 
 # uHTTPd settings
-set uhttpd.main.redirect_https='1'
+#set uhttpd.main.redirect_https='1'
 
 # BanIP settings
-set banip.global.ban_cores='1'
-set banip.global.ban_reportelements='0'
-set banip.global.ban_splitsize='1024'
-set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
-set banip.global.ban_blockforwardlan='doh'
-set banip.global.ban_countries='BY','CD','CF','CU','ET','HK','IQ','IR','KP','LB','LY','MM','RU','SD','SY','VE','YE','ZW'
+#set banip.global.ban_cores='1'
+#set banip.global.ban_reportelements='0'
+#set banip.global.ban_splitsize='1024'
+#set banip.global.ban_blockinput='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardwan='cinsscore' 'debl' 'turris'
+#set banip.global.ban_blockforwardlan='doh'
+#set banip.global.ban_countries='BY','CD','CF','CU','ET','HK','IQ','IR','KP','LB','LY','MM','RU','SD','SY','VE','YE','ZW'
 
 # Disable IPv6
 set network.lan.ipv6='0'
