@@ -6,7 +6,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 */24 * * *"
 
 concurrency:
   group: openwrt-${{ github.workflow }}-${{ github.ref_type }}-${{ github.ref_name || github.run_id }}
