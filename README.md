@@ -7,8 +7,8 @@
 [![License](https://img.shields.io/github/license/JuliusBairaktaris/Qualcommax_NSS_Builder?style=flat-square&label=License)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/JuliusBairaktaris/Qualcommax_NSS_Builder?style=flat-square&label=Last%20Commit)](https://github.com/JuliusBairaktaris/Qualcommax_NSS_Builder/commits/main)
 
-A GitHub Actions pipeline that builds an OpenWrt image for **every IPQ807x
-device in the target** — all 39 of them: Qualcomm NSS hardware offload running
+A GitHub Actions pipeline that builds an OpenWrt image for the **Xiaomi AX3600**:
+Qualcomm NSS hardware offload running
 on OpenWrt main's **upstream `qca_edma` / `qca_ppe` ethernet drivers**
 ([PR #22381](https://github.com/openwrt/openwrt/pull/22381)) — not the vendor
 `qca-nss-dp` / `qca-ssdk` stack every other NSS build uses. Built from
@@ -51,21 +51,17 @@ install stock OpenWrt first (your device's
 this over it.
 
 <details>
-<summary><b>Devices built</b> — all 39 in <code>qualcommax/ipq807x</code></summary>
+<summary><b>Device built</b> — Xiaomi AX3600</summary>
 
-The split is the ath11k memory profile, which is compile-time and image-wide,
-so each group of boards that shares a profile shares a build.
+The AX3600 build uses the board's 512 MB ath11k memory profile, which is
+compile-time and image-wide.
 
 | Group | RAM | Devices |
 |---|---|---|
 | `xiaomi_ax3600` | 512 MB | Xiaomi AX3600 (own build: adds the board's wireless defaults and SQM template) |
-| `ipq807x-1g` | 1 GB+ | Aliyun AP8220, Arcadyan AW1000, Asus RT-AX89X, Buffalo WXR-5950AX12, Dynalink DL-WRX36, Edgecore EAP102, Linksys HomeWRK, Linksys MX4200 v2, Linksys MX4300, Linksys MX5300, Linksys MX8500, Netgear RAX120v2, Netgear RBR750, Netgear RBS750, Netgear SXR80, Netgear SXS80, Netgear WAX620, Netgear WAX630, prpl Haze, QNAP 301w, Spectrum SAX1V1K, TCL LINKHUB HH500V, TP-Link Deco X80-5G, TP-Link EAP620 HD v1, TP-Link EAP660 HD v1, Xiaomi AX9000, Yuncore AX880, Zbtlink ZBT-Z800AX, Zyxel NBG7815, Zyxel NWA110AX, Zyxel NWA210AX |
-| `ipq807x-512m` | 512 MB | CMCC RM2-6, Compex WPQ873, Edimax CAX1800, Linksys MX4200 v1, Redmi AX6, ZTE MF269 |
-| `ipq807x-256m` | 256 MB | Netgear WAX218 |
 
-The AX3600 is the board every change is validated on; the rest carry the same
-data path and the same NSS device-tree nodes, and are built so a bug report
-starts from a known image instead of a hand-rolled config.
+The AX3600 is the supported deployment target and the board every change is
+validated on.
 
 </details>
 
@@ -210,7 +206,6 @@ devices/common/          # shared by every image
   files/                 # base rootfs overlay (sshd_config, QoL uci-defaults)
   files.edma-nss/        # edma-nss overlay (rc.local)
 devices/xiaomi_ax3600/   # one directory per build: config + optional overlays
-devices/ipq807x-{1g,512m,256m}/
 scripts/                 # check-updates, prepare-build, prune-releases (tested, linted)
 docs/                    # CUSTOMIZE.md, ARCHITECTURE.md
 .github/workflows/       # build.yml (check → release → build → publish → prune), lint.yml

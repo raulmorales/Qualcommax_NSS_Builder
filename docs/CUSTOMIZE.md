@@ -20,13 +20,12 @@ env:
   FEEDS: "src-git nss https://github.com/JuliusBairaktaris/nss-packages.git;edma-nss"
 ```
 
-Which devices get built is the `build` job's matrix, one entry per
-`devices/<id>/` directory:
+The deployment target is selected in the `build` job's matrix:
 
 ```yaml
     strategy:
       matrix:
-        device: [xiaomi_ax3600, ipq807x-1g, ipq807x-512m, ipq807x-256m]
+        device: [xiaomi_ax3600]
         flavour: [default, mesh]
         include:
           - flavour: mesh
