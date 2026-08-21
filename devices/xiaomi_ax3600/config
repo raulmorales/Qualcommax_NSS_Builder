@@ -34,7 +34,8 @@ CONFIG_PACKAGE_luci-app-ddns=y
 CONFIG_PACKAGE_ddns-scripts-cloudflare=y
 
 # mDNS/Bonjour: UDP 5353, para Google Cast/Chromecast y otros servicios.
-#CONFIG_PACKAGE_avahi-daemon-service-ssh=y
-#CONFIG_PACKAGE_avahi-utils=y
+CONFIG_PACKAGE_avahi-dbus-daemon=y
+CONFIG_PACKAGE_avahi-utils=y
+
 # SSDP/UPnP: UDP 1900, usado por HEOS/Marantz para descubrir dispositivos.
 CONFIG_PACKAGE_smcroute=y
