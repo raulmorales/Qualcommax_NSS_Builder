@@ -52,19 +52,24 @@ up_sha="$(resolve_sha "$UPSTREAM_REPO" "$UPSTREAM_REF")"
 nss_sha=""
 [[ -n "$NSS_REPO" ]] && nss_sha="$(resolve_sha "$NSS_REPO" "$NSS_REF")"
 
+# Latest published release body for a prefix; empty when there is none.
+latest_body() {
+  local prefix="$1"
+  [[ -n "$REPO" ]] || return 0
+  # Anchored on the tag's timestamp field, so the prefix of one flavour does
+  # not also match another's (edma-nss vs edma-nss-mesh).
+  gh api "repos/$REPO/releases" --jq \
+    "[.[] | select(.draft|not) | select(.tag_name | test(\"^${prefix}-[0-9]{8}T[0-9]{6}Z-\"))] | sort_by(.created_at) | reverse | .[0].body // \"\"" \
+    2>/dev/null || printf '%s' ""
+}
+
 if [[ "$EVENT_NAME" != "schedule" ]]; then
   # push (builder config changed) or manual dispatch (explicit) -> always rebuild.
   need=true
 else
-  # scheduled tick -> only rebuild when the upstream moved since the last release.
-  body=""
-  if [[ -n "$REPO" ]]; then
-    # Anchored on the tag's timestamp field, so the prefix of one flavour does
-    # not also match another's (edma-nss vs edma-nss-mesh).
-    body="$(gh api "repos/$REPO/releases" --jq \
-      "[.[] | select(.draft|not) | select(.tag_name | test(\"^${RELEASE_PREFIX}-[0-9]{8}T[0-9]{6}Z-\"))] | sort_by(.created_at) | reverse | .[0].body // \"\"" \
-      2>/dev/null || printf '%s' "")"
-  fi
+  # scheduled tick -> only rebuild when a source moved since the last release
+  # of the flavour built from it.
+  body="$(latest_body "$RELEASE_PREFIX")"
   if [[ "$body" == *"$up_sha"* ]] && { [[ -z "$nss_sha" ]] || [[ "$body" == *"$nss_sha"* ]]; }; then
     need=false
   else
