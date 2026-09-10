@@ -160,7 +160,10 @@ jobs:
           # flex/bison/etc. host tools, so the host set is the minimal OpenWrt prerequisite list
           # for Ubuntu 26.04. rsync is for prepare-build.sh's overlay step. Everything else
           # (file, wget, unzip, gh) is preinstalled on the GitHub runner image.
-          sudo apt-get update
+          # The runner image carries third-party apt repos the build has no use for,
+          # and their indexes intermittently fail to verify; the install below is the
+          # step that has to succeed.
+          sudo apt-get update || true
           sudo apt-get install -y \
             bzip2 g++ gawk gcc git glibc-source libncurses-dev make rsync
 
@@ -209,10 +212,7 @@ jobs:
         working-directory: openwrt
         run: |
           set -euo pipefail
-          if ! make -j"$(nproc)"; then
-            echo "::warning::Parallel build failed; retrying single-threaded for diagnostics"
-            make -j1 V=s
-          fi
+          make -j"$(nproc)"
 
       - name: Upload images
         run: |

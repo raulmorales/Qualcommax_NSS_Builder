@@ -27,7 +27,7 @@ permissions:
 
 env:
   UPSTREAM_REPO: JuliusBairaktaris/openwrt-nss-edma
-  UPSTREAM_REF: ppe-offload
+  UPSTREAM_REF: ppe-flow-offload
   TAG: ppe-offload-test
   # No overlay files for this flavour; VARIANT picks files.<variant> and
   # patches/feeds/<variant>.
@@ -39,7 +39,7 @@ env:
 
 jobs:
   check:
-    name: Check ppe-offload
+    name: Check ppe-flow-offload
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
@@ -110,7 +110,10 @@ jobs:
       - name: Install build dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update
+          # The runner image carries third-party apt repos the build has no use for,
+          # and their indexes intermittently fail to verify; the install below is the
+          # step that has to succeed.
+          sudo apt-get update || true
           sudo apt-get install -y \
             bzip2 g++ gawk gcc git glibc-source libncurses-dev make rsync
 
@@ -159,10 +162,7 @@ jobs:
         working-directory: openwrt
         run: |
           set -euo pipefail
-          if ! make -j"$(nproc)"; then
-            echo "::warning::Parallel build failed; retrying single-threaded for diagnostics"
-            make -j1 V=s
-          fi
+          make -j"$(nproc)"
 
       - name: Upload images
         run: |
