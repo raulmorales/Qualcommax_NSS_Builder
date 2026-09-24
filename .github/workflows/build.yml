@@ -54,6 +54,22 @@ jobs:
       - id: check
         run: bash scripts/check-updates.sh
 
+  stats:
+    name: Download stats
+    needs: check
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      # Refreshes the README badge every run; the prune job also folds in
+      # deleted releases before removing them.
+      - run: bash scripts/download-stats.sh
+
   release:
     name: Create draft release
     needs: check
@@ -160,7 +176,10 @@ jobs:
           # flex/bison/etc. host tools, so the host set is the minimal OpenWrt prerequisite list
           # for Ubuntu 26.04. rsync is for prepare-build.sh's overlay step. Everything else
           # (file, wget, unzip, gh) is preinstalled on the GitHub runner image.
-          sudo apt-get update
+          # The runner image carries third-party apt repos the build has no use for,
+          # and their indexes intermittently fail to verify; the install below is the
+          # step that has to succeed.
+          sudo apt-get update || true
           sudo apt-get install -y \
             bzip2 g++ gawk gcc git glibc-source libncurses-dev make rsync
 
@@ -205,14 +224,44 @@ jobs:
             sleep 5
           done
 
-      - name: Build
-        working-directory: openwrt
+      # ccache hashes neither the assembler nor cc1, so the key covers every
+      # toolchain input and a change there starts from an empty cache. GitHub
+      # drops entries unused for 7 days and evicts the oldest over the quota.
+      # The GCC version string carries the OpenWrt revision, which lands in
+      # the compiler binary and the kernel's autoconf.h and so misses every
+      # target object on each new commit; the toolchain tree hash replaces it.
+      - name: Compute ccache key
+        id: ccache
         run: |
           set -euo pipefail
-          if ! make -j"$(nproc)"; then
-            echo "::warning::Parallel build failed; retrying single-threaded for diagnostics"
-            make -j1 V=s
-          fi
+          tree=$(git -C openwrt rev-parse HEAD:toolchain)
+          mk=openwrt/toolchain/gcc/common.mk
+          # shellcheck disable=SC2016 # make variables, not shell
+          grep -qx 'PKGVERSION=OpenWrt GCC $(PKG_VERSION) $(REVISION)' "$mk"
+          sed -i "s/^PKGVERSION=.*/PKGVERSION=OpenWrt GCC \$(PKG_VERSION) ${tree:0:12}/" "$mk"
+          sum=$({
+            echo "$tree"
+            grep -E '^CONFIG_(BINUTILS|GCC|LIBC|MUSL|GLIBC)_' openwrt/.config
+            gcc --version; as --version
+          } | sha256sum | cut -c1-16)
+          echo "prefix=ccache-${{ env.VARIANT }}-$sum-" >>"$GITHUB_OUTPUT"
+
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: openwrt/.ccache
+          key: ${{ steps.ccache.outputs.prefix }}${{ github.run_id }}
+          restore-keys: ${{ steps.ccache.outputs.prefix }}
+
+      - name: Build
+        working-directory: openwrt
+        env:
+          CCACHE_COMPILERCHECK: content
+          CCACHE_MAXSIZE: 4G
+        run: |
+          set -euo pipefail
+          make -j"$(nproc)"
+          staging_dir/host/bin/ccache -s
 
       - name: Upload images
         run: |

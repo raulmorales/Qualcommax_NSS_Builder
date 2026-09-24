@@ -3,9 +3,11 @@
 # that drive the offload. Nothing else — the point of these images is to test
 # the qca_edma/qca_ppe datapath, not to ship a router build.
 #
-# Built from the ppe-flow-offload branch (PR openwrt#24806), where the offload
-# lives in the kernel driver, so there is no NSS feed and no CONFIG_NSS_*
-# symbol anywhere here.
+# Built from the ppe-offload branch, which carries the whole offload as one
+# checkout: the switch series (PR openwrt#24806) plus the four features that
+# each need a pending kernel patch (openwrt#25078, #25079, #25080, #25081) and
+# the ppe-qos package (openwrt#25082). The offload lives in the kernel driver,
+# so there is no NSS feed and no CONFIG_NSS_* symbol anywhere here.
 #
 # prepare-build.sh concatenates this with devices/<device>/config (which is just
 # the subtarget) and runs `make defconfig`; COMMON=common-ppe in the workflow
@@ -20,6 +22,10 @@ CONFIG_TARGET_qualcommax=y
 CONFIG_TARGET_MULTI_PROFILE=y
 CONFIG_TARGET_ALL_PROFILES=y
 CONFIG_TARGET_PER_DEVICE_ROOTFS=y
+
+## Compiler cache, restored and saved by the workflow.
+CONFIG_CCACHE=y
+CONFIG_DEVEL=y
 
 ## Sysupgrade-only, as with the NSS images: the audience already runs OpenWrt.
 # CONFIG_TARGET_ROOTFS_INITRAMFS is not set
