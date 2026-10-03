@@ -12,7 +12,6 @@ env:
   UPSTREAM_REF: nss-edma-rework                       # branch, tag, or 40-char SHA
   NSS_REPO: JuliusBairaktaris/nss-packages            # NSS packages repo (blank to disable)
   NSS_REF: edma-nss
-  TARGET: qualcommax/ipq807x                          # bin/targets/<target>/
   VARIANT: edma-nss                                   # selects devices/<id>/files.<variant>
   RELEASE_PREFIX: edma-nss                            # tag = <prefix>-<ts>-<run id>
   MESH_RELEASE_PREFIX: edma-nss-mesh                  # same, for the mesh flavour
@@ -32,6 +31,10 @@ The deployment target is selected in the `build` job's matrix:
             config_fragment: devices/common/config.mesh
 ```
 
+The subtarget is part of each group's config (`CONFIG_TARGET_qualcommax_ipq807x=y`
+or `CONFIG_TARGET_qualcommax_ipq60xx=y`), not of the shared one, so ipq807x and
+ipq60xx groups build side by side.
+
 The second axis is the **flavour**: every group is built twice, once plain and
 once for 802.11s mesh offload, and each flavour gets its own release
 (`RELEASE_PREFIX` / `MESH_RELEASE_PREFIX`). A flavour is nothing but a `.config`
@@ -44,7 +47,7 @@ unaffected: both flavours use `files.$VARIANT`.
 
 A group exists per memory profile, because the ath11k and NSS profiles are
 compile-time and image-wide. Adding a device to a group is one
-`CONFIG_TARGET_DEVICE_qualcommax_ipq807x_DEVICE_<id>=y` line in that group's
+`CONFIG_TARGET_DEVICE_qualcommax_<subtarget>_DEVICE_<id>=y` line in that group's
 config — the group whose profile matches the board's RAM.
 
 Getting that right is on you. `kmod-ath11k` carries per-board profile selects,
