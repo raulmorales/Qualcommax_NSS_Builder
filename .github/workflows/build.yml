@@ -1,8 +1,10 @@
 name: Build
 
-# Builds the edma-nss image for the Xiaomi AX3600 (default flavour only):
+# Builds the ppe-nss image for the Xiaomi AX3600 (default flavour only):
 #   check (upstream moved?) -> draft release -> build each group -> publish -> prune
 # All build parameters live in the `env:` block below and in devices/<group>/config.
+# The vendor NSS stack (edma-nss releases) was last built from the
+# archive/edma-nss-final tag of this repo.
 on:
   workflow_dispatch:
   push:
@@ -14,7 +16,7 @@ on:
       - 'scripts/**'
       - '.github/workflows/build.yml'
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 */2 * * *"
 
 concurrency:
   group: build-${{ github.ref }}
@@ -24,14 +26,18 @@ permissions:
   contents: read
 
 env:
-  UPSTREAM_REPO: JuliusBairaktaris/openwrt-nss-edma
-  UPSTREAM_REF: nss-edma-rework
+  UPSTREAM_REPO: JuliusBairaktaris/openwrt-ppe-nss
+  UPSTREAM_REF: ppe-nss
   NSS_REPO: JuliusBairaktaris/nss-packages
   NSS_REF: edma-nss
-  VARIANT: edma-nss
-  RELEASE_PREFIX: edma-nss
+  VARIANT: ppe-nss
+  RELEASE_PREFIX: ppe-nss
   KEEP: "2"                     # newest releases to retain, per prefix
-  FEEDS: "src-git nss https://github.com/JuliusBairaktaris/nss-packages.git;edma-nss"
+  # nss-firmware, and the luci fork carrying luci-app-ppe-qos (openwrt/luci
+  # PR 8965), which prepare-build.sh swaps in for the default luci feed.
+  FEEDS: |
+    src-git nss https://github.com/JuliusBairaktaris/nss-packages.git;edma-nss
+    src-git luci https://github.com/JuliusBairaktaris/luci.git;luci-app-ppe-qos
 
 jobs:
   check:
@@ -110,9 +116,9 @@ jobs:
               echo "there is no factory image; install stock OpenWrt first if you are not"
               echo "already running it."
               echo
-              echo "The offload comes up at boot; \`nss-status\` reports its health."
-              echo "To stay on the plain host stack instead:"
-              echo "\`uci set nss.general.enabled='0'; uci commit nss; reboot\`."
+              echo "Wired offload runs in the PPE through the fw4 flowtable, switchdev"
+              echo "and tc. The NSS Wi-Fi offload is on by default; turn it off with"
+              echo "\`uci set nss-wifi.general.offload=0; uci commit nss-wifi; reboot\`."
             } >release_notes.md
 
             # stdout is the tag; gh prints the release URL, which would
@@ -190,31 +196,50 @@ jobs:
             echo "KBUILD_BUILD_HOST=github"
           } >>"$GITHUB_ENV"
 
+      # The OpenWrt source mirrors can stall, and a git source
+      # cannot fall back to a fresh clone: its PKG_MIRROR_HASH covers the zstd
+      # stream, which changes with the zstd version. Verified downloads are kept
+      # between runs; download.pl deletes any that no longer match their hash.
+      # Old source versions accumulate; deleting the dl- entries starts over.
+      - name: Restore sources
+        uses: actions/cache/restore@v6
+        with:
+          path: openwrt/dl
+          key: dl-${{ github.run_id }}
+          restore-keys: dl-
+
       - name: Download sources
+        id: download
         working-directory: openwrt
         run: |
           set -euo pipefail
+          mkdir -p dl
+          before=$(find dl -maxdepth 1 -type f | wc -l)
           for attempt in 1 2 3; do
             make download -j"$(nproc)" V=s && break
             echo "Download attempt $attempt failed; retrying..."
             sleep 5
           done
+          echo "grew=$(($(find dl -maxdepth 1 -type f | wc -l) > before))" >>"$GITHUB_OUTPUT"
+
+      # One entry per run that fetched something new: the first job to get here
+      # saves, the others find the key taken. Each job restores the newest
+      # entry, so it grows to the union of every group's sources.
+      - name: Save sources
+        if: steps.download.outputs.grew == 1
+        uses: actions/cache/save@v6
+        with:
+          path: openwrt/dl
+          key: dl-${{ github.run_id }}
 
       # ccache hashes neither the assembler nor cc1, so the key covers every
       # toolchain input and a change there starts from an empty cache. GitHub
       # drops entries unused for 7 days and evicts the oldest over the quota.
-      # The GCC version string carries the OpenWrt revision, which lands in
-      # the compiler binary and the kernel's autoconf.h and so misses every
-      # target object on each new commit; the toolchain tree hash replaces it.
       - name: Compute ccache key
         id: ccache
         run: |
           set -euo pipefail
           tree=$(git -C openwrt rev-parse HEAD:toolchain)
-          mk=openwrt/toolchain/gcc/common.mk
-          # shellcheck disable=SC2016 # make variables, not shell
-          grep -qx 'PKGVERSION=OpenWrt GCC $(PKG_VERSION) $(REVISION)' "$mk"
-          sed -i "s/^PKGVERSION=.*/PKGVERSION=OpenWrt GCC \$(PKG_VERSION) ${tree:0:12}/" "$mk"
           sum=$({
             echo "$tree"
             grep -E '^CONFIG_(BINUTILS|GCC|LIBC|MUSL|GLIBC)_' openwrt/.config
