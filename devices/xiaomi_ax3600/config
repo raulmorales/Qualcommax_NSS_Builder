@@ -16,6 +16,14 @@ CONFIG_PACKAGE_kmod-ath10k-ct-smallbuffers=n
 
 ## Hardware this board does not have.
 CONFIG_PACKAGE_kmod-phy-aquantia=n
+# No USB port: undo the USB storage that devices/common/config builds in.
+CONFIG_PACKAGE_kmod-usb-storage=n
+CONFIG_PACKAGE_kmod-usb-storage-uas=n
+CONFIG_PACKAGE_kmod-usb-core=n
+CONFIG_PACKAGE_kmod-usb-dwc3=n
+CONFIG_PACKAGE_kmod-usb-dwc3-qcom=n
+CONFIG_PACKAGE_kmod-usb-xhci-hcd=n
+CONFIG_PACKAGE_kmod-usb3=n
 
 
 ## My Packages and Utilities
