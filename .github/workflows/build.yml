@@ -55,7 +55,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: check
-        run: bash scripts/check-updates.sh  
+        run: bash scripts/check-updates.sh
+
   release:
     name: Create draft release
     needs: check
