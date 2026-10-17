@@ -42,7 +42,6 @@ stock OpenWrt first from its [device page](https://openwrt.org/toh/start).
 |---|---|
 | `ppe-nss-*` | The default. NSS firmware 12.5 (`NSS.FW.12.5-210-HK.R` on IPQ807x, `NSS.FW.12.5-210-CP.R` on IPQ60xx) and 11.4.0.5, the last line that accepts an 802.11s mesh interface. The images boot 12.5; `uci set nss-wifi.general.firmware=11.4; uci commit nss-wifi; reboot` switches to 11.4. |
 | `ppe-nss-mesh-*` | Earlier mesh builds on 11.4. No longer built: the `ppe-nss` images carry both lines. |
-| `ppe-offload-test` | One prerelease, replaced in place. OpenWrt main with the PPE offload from the `ppe-flow-offload` branch and no NSS. For testing only. |
 | `edma-nss-*` | The archived vendor NSS stack. No longer built. |
 
 Each release names the source commit it was built from and carries a
