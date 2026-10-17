@@ -29,6 +29,14 @@ CONFIG_USE_LTO=y
 CONFIG_USE_MOLD=y
 CONFIG_ZLIB_OPTIMIZE_SPEED=y
 
+## Every kernel module, published as the image's apk feed: the kernel's
+## vermagic depends on the selected modules, so only this build can serve them.
+CONFIG_ALL_KMODS=y
+## An ImageBuilder holding every package of this build, which the image
+## picker's custom builds (custom.yml) run from.
+CONFIG_IB=y
+CONFIG_IB_STANDALONE=y
+
 ## Kernel Build Options
 CONFIG_BUILD_PATENTED=y
 CONFIG_EXPERIMENTAL=y
@@ -135,3 +143,8 @@ CONFIG_NSS_FIRMWARE_VERSION_12_5=y
 ## reboots in the board's ramoops region; the image archives them to
 ## /root/pstore on the next boot.
 CONFIG_PACKAGE_kmod-ramoops=y
+
+## ppe-help collects a redacted diagnostic report for bug reports
+## (ppe-help -h). It is a target default on ppe-nss; listed here so the
+## images keep it whatever the profile selects.
+CONFIG_PACKAGE_ppe-help=y

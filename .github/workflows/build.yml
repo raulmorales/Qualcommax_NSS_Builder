@@ -1,7 +1,8 @@
 name: Build
 
-# Builds the ppe-nss image for the Xiaomi AX3600 (default flavour only):
-#   check (upstream moved?) -> draft release -> build each group -> publish -> prune
+# Builds the ppe-nss image for the Xiaomi AX3600 only (a fork customisation;
+# upstream builds six groups):
+#   check (upstream moved?) -> draft release -> build each group -> publish -> prune -> feed
 # All build parameters live in the `env:` block below and in devices/<group>/config.
 # The vendor NSS stack (edma-nss releases) was last built from the
 # archive/edma-nss-final tag of this repo.
@@ -30,6 +31,10 @@ env:
   UPSTREAM_REF: ppe-nss
   NSS_REPO: JuliusBairaktaris/nss-packages
   NSS_REF: edma-nss
+  # The picker and the feeds move here once the PAGES_DEPLOY_KEY secret holds
+  # a deploy key with write access to PAGES_REPO.
+  PAGES_REPO: ppenss/ppenss.github.io
+  PAGES_URL: https://ppenss.github.io
   VARIANT: ppe-nss
   RELEASE_PREFIX: ppe-nss
   KEEP: "2"                     # newest releases to retain, per prefix
@@ -57,6 +62,22 @@ jobs:
       - id: check
         run: bash scripts/check-updates.sh
 
+  stats:
+    name: Download stats
+    needs: check
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      # Refreshes the README badge every run; the prune job also folds in
+      # deleted releases before removing them.
+      - run: bash scripts/download-stats.sh
+
   release:
     name: Create draft release
     needs: check
@@ -78,8 +99,8 @@ jobs:
           date=$(date -u +%F)
           stamp=$(date -u +%Y%m%dT%H%M%SZ)
 
-          # The build job uploads into the draft; it is published only once
-          # the build has succeeded, so a partial image set never goes out.
+          # The build jobs upload into a draft, published only once every
+          # group has succeeded, so a partial image set never goes out.
           draft() {
             local prefix="$1" name="$2" tag
             tag="${prefix}-${stamp}-${GITHUB_RUN_ID}"
@@ -88,7 +109,7 @@ jobs:
               echo "## OpenWrt Build — ${name}"
               echo "- **Date**: $date"
               echo "- **Variant**: \`${name}\`"
-              echo "- **Target**: \`qualcommax/ipq807x\` (Xiaomi AX3600)"
+              echo "- **Targets**: \`qualcommax/ipq807x\`, \`qualcommax/ipq60xx\`"
               echo "- **Upstream**: \`${UPSTREAM_REPO}@${UPSTREAM_SHA}\`"
               if [[ -n "${NSS_SHA}" ]]; then
                 echo "- **NSS**: \`${NSS_SHA}\`"
@@ -103,6 +124,10 @@ jobs:
               echo "Wired offload runs in the PPE through the fw4 flowtable, switchdev"
               echo "and tc. The NSS Wi-Fi offload is on by default; turn it off with"
               echo "\`uci set nss-wifi.general.offload=0; uci commit nss-wifi; reboot\`."
+              echo
+              echo "The images carry NSS firmware 12.5 and 11.4 and boot 12.5. 802.11s"
+              echo "mesh needs 11.4, the last line that accepts a mesh interface:"
+              echo "\`uci set nss-wifi.general.firmware=11.4; uci commit nss-wifi; reboot\`."
             } >release_notes.md
 
             # stdout is the tag; gh prints the release URL, which would
@@ -128,7 +153,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One entry per devices/<name>/ directory.
+        # One entry per devices/<name>/ directory. The memory-profile groups exist
+        # because the ath11k memory profile is compile-time and image-wide, so
+        # boards can only share a build when they share a profile.
         device: [xiaomi_ax3600]
     env:
       GH_TOKEN: ${{ github.token }}
@@ -167,6 +194,32 @@ jobs:
           OPENWRT_DIR: ${{ github.workspace }}/openwrt
           BUILDER_REPO: ${{ github.workspace }}/builder
         run: bash builder/scripts/prepare-build.sh
+
+      # The image trusts the key that signs its packages (base-files ships
+      # public-key.pem). Without the secret, OpenWrt makes a key per build.
+      # /etc/ppe-release tells ppe-update where its newer images are.
+      - name: Point the image at its kmod feed
+        working-directory: openwrt
+        env:
+          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+          PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$APK_SIGN_KEY" ]]; then
+            (umask 077; printf '%s\n' "$APK_SIGN_KEY" >private-key.pem)
+          fi
+          # The OpenWrt target feed serves another kernel's modules; this
+          # build's own target packages replace it.
+          site="https://${OWNER,,}.github.io/${REPO_NAME}"
+          [[ -z "$PAGES_DEPLOY_KEY" ]] || site="$PAGES_URL"
+          url="${site}/${TAG}/${DEVICE}/packages.adb"
+          mkdir -p files/etc/uci-defaults
+          printf "TAG='%s'\nGROUP='%s'\nSITE='%s'\nREPO='%s'\n" \
+            "$TAG" "$DEVICE" "$site" "$GITHUB_REPOSITORY" >files/etc/ppe-release
+          printf '%s\n' "sed -i 's|^.*/targets/.*/packages/packages\\.adb\$|${url}|' /etc/apk/repositories.d/distfeeds.list" \
+            >files/etc/uci-defaults/997-kmod-feed
 
       - name: Set reproducible-build env
         working-directory: openwrt
@@ -243,9 +296,11 @@ jobs:
         env:
           CCACHE_COMPILERCHECK: content
           CCACHE_MAXSIZE: 4G
+        # A module that fails to build is left out of the feed; it is not in
+        # the image (=m), so it does not stop the release.
         run: |
           set -euo pipefail
-          make -j"$(nproc)" || make -j1 V=s
+          make -j"$(nproc)" IGNORE_ERRORS=m || make -j1 V=s IGNORE_ERRORS=m
           staging_dir/host/bin/ccache -s
 
       - name: Upload images
@@ -262,6 +317,13 @@ jobs:
           [[ ${#assets[@]} -gt 0 ]] || { echo "::error::no sysupgrade images in $out"; exit 1; }
           grep 'sysupgrade.bin' "$out/sha256sums" >"sha256sums-${DEVICE}.txt"
           cp "$out/config.buildinfo" "config-${DEVICE}.buildinfo"
+          # The ImageBuilder and the overlay files are what custom.yml builds
+          # a picked package set from.
+          ib=$(find "$out" -maxdepth 1 -name 'openwrt-imagebuilder-*.tar.zst')
+          [[ -f "$ib" ]] || { echo "::error::no ImageBuilder in $out"; exit 1; }
+          mv "$ib" "imagebuilder-${DEVICE}.tar.zst"
+          tar -C openwrt/files -czf "files-${DEVICE}.tar.gz" .
+          assets+=("imagebuilder-${DEVICE}.tar.zst" "files-${DEVICE}.tar.gz")
 
           # --clobber, so re-running a job that died mid-upload is a recovery
           # and not a permanent "asset already exists".
@@ -278,6 +340,27 @@ jobs:
             echo "## ${DEVICE}"
             echo "- assets: ${#assets[@]}"
           } >>"$GITHUB_STEP_SUMMARY"
+
+      # The target packages (kernel, every kmod) and their signed index, at
+      # the path the image's uci-defaults points to. The feed job publishes it.
+      - name: Stage kmod feed
+        run: |
+          set -euo pipefail
+          pkgs="$(dirname "$(find openwrt/bin/targets -name sha256sums)")/packages"
+          [[ -s "$pkgs/packages.adb" ]] || { echo "::error::no packages.adb in $pkgs"; exit 1; }
+          mkdir -p "feed/$TAG"
+          mv "$pkgs" "feed/$TAG/$DEVICE"
+          out=$(dirname "$pkgs")
+          cp "$out/profiles.json" "$out"/*.manifest "feed/$TAG/$DEVICE/"
+          echo "- feed: $(find "feed/$TAG/$DEVICE" -name '*.apk' | wc -l) packages, $(du -sh "feed/$TAG/$DEVICE" | cut -f1)" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Upload kmod feed
+        uses: actions/upload-artifact@v7
+        with:
+          name: feed-${{ matrix.device }}
+          path: feed
+          retention-days: 3
+          compression-level: 0
 
   publish:
     name: Publish release
@@ -297,10 +380,10 @@ jobs:
           set -euo pipefail
           if [[ "$BUILD_RESULT" != "success" ]]; then
             # A half-built release would silently be missing devices, and a
-            # draft left behind is never pruned. Drop both and fail. No
+            # draft left behind is never pruned. Drop it and fail. No
             # --cleanup-tag: a draft's tag exists only inside the release.
             gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
-            echo "::error::the build failed ($BUILD_RESULT); draft release discarded"
+            echo "::error::a build group failed ($BUILD_RESULT); draft release discarded"
             exit 1
           fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
@@ -321,3 +404,35 @@ jobs:
         run: |
           set -euo pipefail
           PREFIX="$RELEASE_PREFIX" bash scripts/prune-releases.sh
+
+  feed:
+    name: Publish kmod feeds and the image picker
+    needs: [release, prune]
+    runs-on: ubuntu-26.04
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: feed-*
+          merge-multiple: true
+          path: new
+
+      # gh-pages holds the picker and one directory per release tag, which
+      # lives as long as the release. One orphan commit, so pruned feeds leave
+      # the repository too.
+      - name: Push to gh-pages
+        env:
+          REPO: ${{ github.repository }}
+          PREFIX: ${{ env.RELEASE_PREFIX }}
+          NEW_DIR: new
+          PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: bash scripts/publish-site.sh
