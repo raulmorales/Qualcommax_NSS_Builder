@@ -82,7 +82,7 @@ def main():
 
     boards = fetch(f"{site}/{tag}/boards.json")
     entry = next((b for b in boards if b["group"] == group and b["profile"] == profile), None)
-    if not entry:
+    if not entry or not entry["packages"]:
         fail(f"{tag} has no image for {group}/{profile}.")
 
     add = pkgs(f.get("add", ""), "Add packages")
@@ -94,7 +94,17 @@ def main():
         fail(f"The first-boot script is limited to {MAX_SCRIPT} bytes.")
 
     base = [p for p in entry["packages"] if p not in ("kernel", "libc") and p not in remove]
-    packages = " ".join(base + [p for p in add if p not in base] + [f"-{p}" for p in remove])
+    # The ImageBuilder adds the profile's default packages to any list, also
+    # those the release's config left out (dropbear, the mbedtls variants),
+    # which it never built. Leave out every default the image does not carry.
+    prof = fetch(f"{site}/{tag}/{group}/profiles.json")
+    defaults = prof["default_packages"] + prof["profiles"][profile].get("device_packages", [])
+    dropped = [p for p in defaults if not p.startswith("-") and p not in entry["packages"]
+               and p not in remove]
+    # custom.yml tags the snapshot feeds, so only added packages and their
+    # dependencies may come from them, never a newer copy of the image's own.
+    packages = " ".join(base + [f"{p}@snapshot" for p in add if p not in base]
+                        + [f"-{p}" for p in remove + dropped])
 
     if script:
         with open(os.environ["UCI_DEFAULTS_OUT"], "w") as fh:
