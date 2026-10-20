@@ -26,7 +26,7 @@ env:
 
 Each `FEEDS` line is added to `feeds.conf`. A line with the name of an
 existing feed replaces it, which is how the luci fork with
-`luci-app-ppe-qos` stands in for the default luci feed. A new feed is not
+`luci-app-qca-ppe-qos` stands in for the default luci feed. A new feed is not
 bundled whole: only the packages selected in the config are built.
 
 ## Groups
@@ -93,7 +93,7 @@ Four layers are copied into the image, later ones winning:
 3. `devices/<group>/files/`: one group
 4. `devices/<group>/files.<variant>/`: one group, one variant
 
-Paths are kept. `etc/ssh/sshd_config` is set to mode 0600.
+Paths are kept.
 `etc/uci-defaults/*` scripts run once on first boot and after each
 sysupgrade; write them so that they do not overwrite a setting the user
 changed. `etc/rc.local` runs on every boot.
